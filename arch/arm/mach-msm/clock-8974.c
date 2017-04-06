@@ -4946,6 +4946,12 @@ static struct clk_lookup msm_clocks_8974_common[] __initdata = {
 
 #if defined(CONFIG_LGE_BROADCAST_TDMB)
 	CLK_LOOKUP("xo",             cxo_a2.c,                 "spi100.0"),
+#if defined (CONFIG_MACH_MSM8974_Z_KR) || defined (CONFIG_MACH_MSM8974_Z_US) || defined (CONFIG_MACH_MSM8974_Z_KDDI)
+	CLK_LOOKUP("xo",	cxo_a2.c,	"spi101.0"),
+#endif
+#endif
+#if defined(CONFIG_LGE_BROADCAST_ONESEG) && (defined(CONFIG_MACH_MSM8974_G2_KDDI) || defined(CONFIG_MACH_MSM8974_G2_DCM))
+		CLK_LOOKUP("xo",	cxo_a2.c,	"spi8.0"),
 #endif
 #if defined(CONFIG_LGE_BROADCAST_ISDBT_JAPAN)
     CLK_LOOKUP("isdbt_xo",       cxo_a2.c,				   "8-0058"),
@@ -4963,6 +4969,9 @@ static struct clk_lookup msm_clocks_8974_common[] __initdata = {
 	CLK_LOOKUP("iface_clk", gcc_blsp1_ahb_clk.c, "f991f000.serial"),
 	CLK_LOOKUP("iface_clk", gcc_blsp1_ahb_clk.c, "f9924000.i2c"),
 	CLK_LOOKUP("iface_clk", gcc_blsp1_ahb_clk.c, "f991e000.serial"),
+#if defined(CONFIG_LGE_NFC_SONY_CXD2235AGG) || defined(CONFIG_LGE_NFC_SONY_KDDI)
+	CLK_LOOKUP("iface_clk", gcc_blsp1_ahb_clk.c, "f9921000.serial"),
+#endif
 	CLK_LOOKUP("core_clk", gcc_blsp1_qup1_i2c_apps_clk.c, "f9923000.i2c"),
 	CLK_LOOKUP("iface_clk", gcc_blsp1_ahb_clk.c, "f9923000.i2c"),
 	CLK_LOOKUP("core_clk", gcc_blsp1_qup2_i2c_apps_clk.c, "f9924000.i2c"),
@@ -4992,7 +5001,11 @@ static struct clk_lookup msm_clocks_8974_common[] __initdata = {
 	CLK_LOOKUP("core_clk", gcc_blsp1_uart2_apps_clk.c, "f991e000.serial"),
 	CLK_LOOKUP("core_clk", gcc_blsp1_uart3_apps_clk.c, "f991f000.serial"),
 	CLK_LOOKUP("core_clk", gcc_blsp1_uart4_apps_clk.c, ""),
+#if defined(CONFIG_LGE_NFC_SONY_CXD2235AGG) || defined(CONFIG_LGE_NFC_SONY_KDDI)
+	CLK_LOOKUP("core_clk", gcc_blsp1_uart5_apps_clk.c, "f9921000.serial"),
+#else
 	CLK_LOOKUP("core_clk", gcc_blsp1_uart5_apps_clk.c, ""),
+#endif
 	CLK_LOOKUP("core_clk", gcc_blsp1_uart6_apps_clk.c, ""),
 
 #ifdef CONFIG_LGE_BLUETOOTH
@@ -5000,6 +5013,10 @@ static struct clk_lookup msm_clocks_8974_common[] __initdata = {
 #endif
 #ifdef CONFIG_LGE_BLUETOOTH
     CLK_LOOKUP("iface_clk", gcc_blsp2_ahb_clk.c, "f9960000.uart"),  //G2
+#endif
+
+#if defined(CONFIG_LGE_BROADCAST_TDMB) || (defined(CONFIG_LGE_BROADCAST_ONESEG) && (defined(CONFIG_MACH_MSM8974_G2_KDDI) || defined(CONFIG_MACH_MSM8974_G2_DCM)))
+	CLK_LOOKUP("iface_clk", gcc_blsp2_ahb_clk.c, "f9964000.spi"),
 #endif
 
 
@@ -5022,7 +5039,7 @@ static struct clk_lookup msm_clocks_8974_common[] __initdata = {
 	CLK_LOOKUP("core_clk", gcc_blsp2_qup1_spi_apps_clk.c, ""),
 
 /* LGE_BROADCAST_ISDBT_JAPAN { */
-#if defined (CONFIG_LGE_BROADCAST_ISDBT_JAPAN)
+#if defined (CONFIG_LGE_BROADCAST_ONESEG) && defined (CONFIG_MACH_MSM8974_Z_KDDI)
 	CLK_LOOKUP("iface_clk", gcc_blsp2_ahb_clk.c, "f9964000.i2c"),
 	CLK_LOOKUP("core_clk", gcc_blsp2_qup2_i2c_apps_clk.c, "f9964000.i2c"),	/* BLSP8, BLSP 2 QUP 1, 0xF9964000 */
 #else

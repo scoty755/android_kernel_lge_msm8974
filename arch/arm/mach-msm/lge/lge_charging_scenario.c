@@ -38,6 +38,15 @@ static struct batt_temp_table chg_temp_table[CHG_MAXIDX] = {
 	{     46,        53,    CHG_BATTEMP_46_51},
 	{     54,   INT_MAX,    CHG_BATTEMP_AB_OT},
 };
+#elif defined (CONFIG_MACH_MSM8974_VU3_KR) || defined (CONFIG_MACH_MSM8974_Z_KR) || defined (CONFIG_MACH_MSM8974_Z_KDDI)
+static struct batt_temp_table chg_temp_table[CHG_MAXIDX] = {
+	{INT_MIN,       -11,    CHG_BATTEMP_BL_M11},
+	{    -10,        -5,    CHG_BATTEMP_M10_M5},
+	{     -4,        43,    CHG_BATTEMP_M4_41},
+	{     44,        45,    CHG_BATTEMP_42_45},
+	{     46,        55,    CHG_BATTEMP_46_OT},
+	{     56,   INT_MAX,    CHG_BATTEMP_AB_OT},
+};
 #else
 static struct batt_temp_table chg_temp_table[CHG_MAXIDX] = {
 	{INT_MIN,       -11,    CHG_BATTEMP_BL_M11},
@@ -57,6 +66,9 @@ static int pseudo_chg_ui;
 
 #ifdef CONFIG_LGE_THERMALE_CHG_CONTROL
 static int last_thermal_current;
+#endif
+#if defined (CONFIG_MACH_MSM8974_Z_KR) || defined (CONFIG_MACH_MSM8974_Z_US) || defined (CONFIG_MACH_MSM8974_Z_KDDI)
+static int change_plug_state = 0;
 #endif
 
 #ifdef CONFIG_LGE_ADJUST_BATT_TEMP
@@ -208,6 +220,21 @@ determine_lge_charging_state(enum lge_battemp_states battemp_st, int batt_volt)
 			battemp_st > CHG_BATTEMP_M10_M5) {
 			pseudo_chg_ui = 1;
 		}
+#if defined(CONFIG_MACH_MSM8974_Z_KR) || defined(CONFIG_MACH_MSM8974_Z_KDDI)
+		if(change_plug_state) {
+			if (battemp_st == CHG_BATTEMP_46_OT) {
+				if (batt_volt < DC_IUSB_VOLTUV) {
+					states_change = STS_CHE_STPCHG_TO_DECCUR;
+					pseudo_chg_ui = 0;
+					next_state = CHG_BATT_DECCUR_STATE;
+				}
+			} else if (battemp_st == CHG_BATTEMP_42_45) {
+				states_change = STS_CHE_STPCHG_TO_NORMAL;
+				pseudo_chg_ui = 0;
+				next_state = CHG_BATT_NORMAL_STATE;
+			}
+		}
+#endif
 #endif
 		else if (battemp_st >= CHG_BATTEMP_AB_OT) {
 			pseudo_chg_ui = 0;
@@ -245,9 +272,16 @@ void lge_monitor_batt_temp(struct charging_info req, struct charging_rsp *res)
 	if (change_charger ^ req.is_charger) {
 		change_charger = req.is_charger;
 		if (req.is_charger) {
+#if defined (CONFIG_MACH_MSM8974_Z_KR) || defined (CONFIG_MACH_MSM8974_Z_US) || defined (CONFIG_MACH_MSM8974_Z_KDDI)
+			change_plug_state = 1;
+#else
 			charging_state = CHG_BATT_NORMAL_STATE;
+#endif
 			res->force_update = true;
-		} else
+		} else {
+#if defined (CONFIG_MACH_MSM8974_Z_KR) || defined (CONFIG_MACH_MSM8974_Z_US) || defined (CONFIG_MACH_MSM8974_Z_KDDI)
+			change_plug_state = 0;
+#endif
 			res->force_update = false;
 	} else {
 		res->force_update = false;

@@ -227,7 +227,7 @@ extern int use_test_limit_2;
 #ifdef CONFIG_LGE_SECURITY_KNOCK_ON
 extern void send_uevent_lpwg(int type);
 #endif
-#if defined(A1_only) && !defined(CONFIG_MACH_MSM8974_G2_OPEN_COM) && !defined(CONFIG_MACH_MSM8974_G2_OPT_AU)
+#if defined(A1_only) && !defined(CONFIG_MACH_MSM8974_G2_OPEN_COM) && !defined(CONFIG_MACH_MSM8974_G2_OPT_AU)  || defined(CONFIG_LGE_Z_TOUCHSCREEN)
 extern int ime_drumming_status;
 extern int keyguard_status;
 #endif
@@ -1344,6 +1344,17 @@ int synaptics_ts_init(struct i2c_client *client, struct touch_fw_info *fw_info)
 				TOUCH_ERR_MSG("DEVICE_CONTROL_REG write fail\n");
 				return -EIO;
 			}
+#if defined(CONFIG_LGE_Z_TOUCHSCREEN)
+			if((keyguard_status == 9) && ime_drumming_status) {
+				small_finger_amp_th[0]=0x67;
+				small_finger_amp_th[1]=0x39;
+				if(touch_i2c_write(ts->client, SMALL_FINGER_AMPLITUDE_THRESHOLD_REG, 2, small_finger_amp_th) < 0) {
+					TOUCH_ERR_MSG("%s : Touch i2c write fail !! \n", __func__);
+				} else {
+					TOUCH_INFO_MSG("%s\n", __func__);
+				}
+			}
+#endif
 #if defined(A1_only) && !defined(CONFIG_MACH_MSM8974_G2_KDDI) && !defined(CONFIG_MACH_MSM8974_G2_OPEN_COM) && !defined(CONFIG_MACH_MSM8974_G2_OPT_AU)
 #if defined(CONFIG_MACH_MSM8974_G2_KR)
 			if ((keyguard_status == 9) && ime_drumming_status) {
@@ -1536,6 +1547,17 @@ int synaptics_ts_init(struct i2c_client *client, struct touch_fw_info *fw_info)
 		return -EIO;	// it is critical problem because interrupt will not occur on some FW.
 	}
 */
+#if defined(CONFIG_LGE_Z_TOUCHSCREEN)
+	if (get_ic_fw_version(ts) < 35) {
+		//use_test_limit_2 = 0;
+		TOUCH_INFO_MSG("firmware version < E035, 1100*1900 -> 720*1280\n");
+		if (touch_i2c_write(client, MAXIMUM_XY_COORDINATE_REG, 4, xy_coordinate) < 0){
+			TOUCH_ERR_MSG("MAXIMUM XY COORDINATE write fail!!\n");
+		}
+	} else {
+		//use_test_limit_2 = 1;
+	}
+#endif
 	ts->is_probed = 1;
 #ifdef CONFIG_LGE_SECURITY_KNOCK_ON
 if(fw_info->fw_setting.ic_chip_rev != TOUCH_CHIP_REV_A) {

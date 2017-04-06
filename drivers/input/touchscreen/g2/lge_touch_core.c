@@ -4618,17 +4618,6 @@ static ssize_t store_touch_gesture(struct lge_touch_data *ts, const char *buf, s
 		}
 #endif
 
-#if defined(CONFIG_LGE_Z_TOUCHSCREEN)
-	/* temporary until implement N-pjt */
-	int type = 0;
-	int temp_value[4] = {0};
-
-	sscanf(buf, "%d %d %d %d %d", &type, &value, &temp_value[1], &temp_value[2], &temp_value[3]);
-	TOUCH_INFO_MSG("store_touch_gesture temp %d %d %d %d %d\n\n", type, value, temp_value[1], temp_value[2], temp_value[3]);
-	if(type!=1){
-		return count;
-	}
-#else
 #if defined(CONFIG_LGE_VU3_TOUCHSCREEN)
 	int type = 0;
 	int temp_value[4] = {0};
@@ -4637,7 +4626,6 @@ static ssize_t store_touch_gesture(struct lge_touch_data *ts, const char *buf, s
 	TOUCH_INFO_MSG("store_touch_gesture temp %d %d %d %d %d\n\n", type, value, temp_value[1], temp_value[2], temp_value[3]);
 #else
 	sscanf(buf, "%d", &value);
-#endif
 #endif
 
 	cancel_delayed_work_sync(&ts->work_f54);

@@ -259,6 +259,10 @@ static struct debug_reg bq24192_debug_regs[] = {
 	BQ24192_DEBUG_REG(0A_, BQ0A_VENDOR_PART_REV_STATUS),
 };
 
+#ifdef CONFIG_MACH_MSM8974_Z_KDDI
+static int bq24192_enable_otg(struct bq24192_chip *chip, bool enable);//
+#endif
+
 int32_t bq24192_is_ready(void)
 {
 	struct bq24192_chip *chip = the_chip;
@@ -1029,6 +1033,16 @@ static void bq24192_irq_worker(struct work_struct *work)
 #endif
 
 	pr_info("08:0x%02X, 09:0x%02X\n",reg08, reg09);
+
+#ifdef CONFIG_MACH_MSM8974_Z_KDDI
+	if ((reg09 & BIT(6)) && ((reg08 & VBUS_STAT_MASK) == VBUS_STAT_MASK))
+	{
+		bq24192_enable_otg(chip, false);
+		pr_info("otg detection! returned by vbus ocp/ovp\n");
+		return;
+	}
+#endif
+
 	if ((reg08 & VBUS_STAT_MASK) == VBUS_STAT_MASK)
 		pr_info("otg detection!\n");
 	else if (reg08 & BIT(7))
@@ -2256,7 +2270,7 @@ static void bq24192_monitor_batt_temp(struct work_struct *work)
 		if (res.change_lvl == STS_CHE_NORMAL_TO_DECCUR ||
 			(res.force_update == true && res.state == CHG_BATT_DECCUR_STATE &&
 			res.dc_current != DC_CURRENT_DEF
-#if defined(CONFIG_MACH_MSM8974_Z_SPR) || defined(CONFIG_MACH_MSM8974_Z_KR) || defined(CONFIG_MACH_MSM8974_B1_KR) || defined(CONFIG_MACH_MSM8974_B1W)
+#if defined(CONFIG_MACH_MSM8974_Z_SPR) || defined(CONFIG_MACH_MSM8974_Z_KR) || defined(CONFIG_MACH_MSM8974_Z_KDDI) || defined(CONFIG_MACH_MSM8974_B1_KR) || defined(CONFIG_MACH_MSM8974_B1W)
 			&& res.change_lvl != STS_CHE_STPCHG_TO_DECCUR
 #endif
 			)) {
@@ -2294,7 +2308,7 @@ static void bq24192_monitor_batt_temp(struct work_struct *work)
 			bq24192_enable_charging(chip, !res.disable_chg);
 			wake_unlock(&chip->lcs_wake_lock);
 		}
-#if defined(CONFIG_MACH_MSM8974_Z_SPR) || defined(CONFIG_MACH_MSM8974_Z_KR) || defined(CONFIG_MACH_MSM8974_B1_KR) || defined(CONFIG_MACH_MSM8974_B1W)
+#if defined(CONFIG_MACH_MSM8974_Z_SPR) || defined(CONFIG_MACH_MSM8974_Z_KR) || defined(CONFIG_MACH_MSM8974_Z_KDDI) || defined(CONFIG_MACH_MSM8974_B1_KR) || defined(CONFIG_MACH_MSM8974_B1W)
 		else if (res.change_lvl == STS_CHE_STPCHG_TO_DECCUR) {
 #ifdef CONFIG_LGE_THERMALE_CHG_CONTROL
 			bq24192_set_adjust_ibat(chip,res.dc_current);
