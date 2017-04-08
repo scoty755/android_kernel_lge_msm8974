@@ -33,6 +33,7 @@
 #include "SynaImage_for_Z_revA.h"
 #include "SynaImage_for_Z_revB.h"
 #include "SynaImage_for_Z_revB_H_Pattern.h"
+#include "SynaImage_for_Z_revB_H_Pattern_new.h"
 #elif defined(CONFIG_MACH_MSM8974_G2_KDDI)
 #include "SynaImage_for_G2_KDDI.h"
 #else
