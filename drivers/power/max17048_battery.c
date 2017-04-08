@@ -46,6 +46,8 @@
 #include <linux/i2c/smb349_charger.h>
 #endif
 
+#include <linux/i2c/bq24192_charger.h>
+
 #ifdef CONFIG_BQ24296_CHARGER
 #include <linux/i2c/bq24296_charger.h>
 #endif
@@ -266,8 +268,13 @@ static int max17048_get_capacity_from_soc(void)
 
 	/* SOC scaling for stable max SOC and changed Cut-off */
 	/*Adj SOC = (FG SOC-Emply)/(Full-Empty)*100*/
+#if defined (CONFIG_MACH_MSM8974_Z_KR) || defined(CONFIG_MACH_MSM8974_Z_US) || defined(CONFIG_MACH_MSM8974_Z_KDDI) || defined(CONFIG_MACH_MSM8974_B1_KR) || defined(CONFIG_MACH_MSM8974_B1W)
+	if(buf[0] > 0)
+	batt_soc = batt_soc/94*100+10000000;
+#else
 	batt_soc = (batt_soc-((ref->model_data->empty)*100000))
 		/(9400-(ref->model_data->empty))*10000;
+#endif
 	batt_soc /= 10000000;
 
 	batt_soc = max17048_capacity_evaluator((int)batt_soc);
@@ -475,8 +482,13 @@ static void max17048_polling_work(struct work_struct *work)
 
 		/* SOC scaling for stable max SOC and changed Cut-off */
 		/* Adj SOC = (FG SOC-Emply) / (Full-Empty) * 100 */
+#if defined (CONFIG_MACH_MSM8974_Z_KR) || defined(CONFIG_MACH_MSM8974_Z_US) || defined(CONFIG_MACH_MSM8974_Z_KDDI) || defined(CONFIG_MACH_MSM8974_B1_KR) || defined(CONFIG_MACH_MSM8974_B1W)
+		if ( buf[0] > 0)
+		capacity = capacity/94*100 + 10000000;
+#else
 		capacity = (capacity-((ref->model_data->empty)*100000))
 			/(9400-(ref->model_data->empty))*10000;
+#endif
 
 		capacity /= 10000000;
 
@@ -811,7 +823,11 @@ int max17048_set_rcomp_by_temperature(struct i2c_client *client)
 		temp_cold = ref->model_data->temp_co_cold;
 	}
 #ifdef CONFIG_SMB349_CHARGER
+#if defined(CONFIG_MACH_MSM8974_Z_KR) || defined(CONFIG_MACH_MSM8974_Z_SPR) || defined(CONFIG_MACH_MSM8974_Z_KDDI)
+	temp = bq24192_get_batt_temp_origin();
+#else
 	temp = smb349_get_batt_temp_origin();
+#endif
 #elif defined(CONFIG_BQ24296_CHARGER)
 	rev = lge_get_board_revno();
 	if (rev == HW_REV_A) {
@@ -938,7 +954,15 @@ ssize_t max17048_show_voltage(struct device *dev,
 #endif
 		/* Reduce charger source */
 #ifdef CONFIG_LGE_PM
+#if defined(CONFIG_MACH_MSM8974_Z_KR) || defined(CONFIG_MACH_MSM8974_Z_US) || defined(CONFIG_MACH_MSM8974_Z_KDDI) || defined(CONFIG_MACH_MSM8974_B1_KR) || defined(CONFIG_MACH_MSM8974_B1W)
+		external_bq24192_enable_charging(0);
+#else
+#if defined(CONFIG_MACH_MSM8974_Z_KR) || defined(CONFIG_MACH_MSM8974_Z_US) || defined(CONFIG_MACH_MSM8974_Z_KDDI) || defined(CONFIG_MACH_MSM8974_B1_KR) || defined(CONFIG_MACH_MSM8974_B1W)
+		external_bq24192_enable_charging(0);
+#else
 		external_charger_enable(0);
+#endif
+#endif
 #endif
 
 		/* Wait for Fuel-gauge stability */
@@ -947,7 +971,11 @@ ssize_t max17048_show_voltage(struct device *dev,
 
 		/* Restore charger source */
 #ifdef CONFIG_LGE_PM
+#if defined(CONFIG_MACH_MSM8974_Z_KR) || defined(CONFIG_MACH_MSM8974_Z_US) || defined(CONFIG_MACH_MSM8974_Z_KDDI) || defined(CONFIG_MACH_MSM8974_B1_KR) || defined(CONFIG_MACH_MSM8974_B1W)
+		external_bq24192_enable_charging(1);
+#else
 		external_charger_enable(1);
+#endif
 #endif
 
 #ifdef CONFIG_MAX17048_SOC_ALERT
@@ -992,7 +1020,11 @@ ssize_t max17048_show_capacity(struct device *dev,
 
 		/* Restore charger source */
 #ifdef CONFIG_LGE_PM
+#if defined(CONFIG_MACH_MSM8974_Z_KR) || defined(CONFIG_MACH_MSM8974_Z_US) || defined(CONFIG_MACH_MSM8974_Z_KDDI) || defined(CONFIG_MACH_MSM8974_B1_KR) || defined(CONFIG_MACH_MSM8974_B1W)
+		external_bq24192_enable_charging(1);
+#else
 		external_charger_enable(1);
+#endif
 #endif
 #ifdef CONFIG_MAX17048_SOC_ALERT
 		enable_irq(gpio_to_irq(ref->model_data->alert_gpio));
