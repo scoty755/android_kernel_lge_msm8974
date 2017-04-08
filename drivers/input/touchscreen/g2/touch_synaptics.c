@@ -1924,6 +1924,12 @@ int synaptics_ts_ic_ctrl(struct i2c_client *client, u8 code, u16 value)
 		break;
 #endif
 	case IC_CTRL_DOUBLE_TAP_WAKEUP_MODE:
+#ifdef CONFIG_LGE_Z_TOUCHSCREEN
+			if(lge_get_board_revno() < HW_REV_B){
+				TOUCH_INFO_MSG("ic_ctrl: IC_CTRL_DOUBLE_TAP_WAKEUP_MODE HW_REV : %d, Knock skipped ", lge_get_board_revno());
+				return 0;
+			}
+#endif
 			switch (value) {
 				unsigned char *r_mem = NULL;
 
