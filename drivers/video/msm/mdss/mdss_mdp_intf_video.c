@@ -23,6 +23,12 @@
 #include "mdss_panel.h"
 #include "mdss_debug.h"
 #include "mdss_mdp_trace.h"
+
+#ifdef CONFIG_OLED_SUPPORT
+#include "mdss_dsi.h"	/* for 4th panel */
+extern int mdss_dsi_lane_config(struct mdss_panel_data *pdata, int enable);
+#endif
+
 #ifdef CONFIG_MACH_LGE
 #include <mach/board_lge.h>
 #endif
@@ -744,6 +750,18 @@ static int mdss_mdp_video_display(struct mdss_mdp_ctl *ctl, void *arg)
 	struct mdss_panel_data *pdata = ctl->panel_data;
 	int rc;
 
+#ifdef CONFIG_OLED_SUPPORT
+	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
+
+	if (ctl->panel_data == NULL) {
+		pr_err("%s: Invalid input data\n", __func__);
+		return -EINVAL;
+	}
+
+	ctrl_pdata = container_of(ctl->panel_data, struct mdss_dsi_ctrl_pdata,
+				panel_data);
+#endif
+
 	pr_debug("kickoff ctl=%d\n", ctl->num);
 
 	ctx = (struct mdss_mdp_video_ctx *) ctl->priv_data;
@@ -809,6 +827,21 @@ static int mdss_mdp_video_display(struct mdss_mdp_ctl *ctl, void *arg)
 		ctx->timegen_en = true;
 		rc = mdss_mdp_ctl_intf_event(ctl, MDSS_EVENT_PANEL_ON, NULL);
 		WARN(rc, "intf %d panel on error (%d)\n", ctl->intf_num, rc);
+#ifdef CONFIG_OLED_SUPPORT
+		if (ctl->panel_data->panel_info.type == MIPI_VIDEO_PANEL) {
+			if (!(ctrl_pdata->ctrl_state & CTRL_STATE_PANEL_INIT)) {
+				mdss_dsi_lane_config(ctl->panel_data, 1);
+				rc = ctrl_pdata->on(ctl->panel_data);
+				mdss_dsi_lane_config(ctl->panel_data, 0);
+				if (rc) {
+					pr_err("%s: unable to initialize the panel\n",
+								__func__);
+					return rc;
+				}
+				ctrl_pdata->ctrl_state |= CTRL_STATE_PANEL_INIT;
+			}
+		}
+#endif
 	}
 
 	return 0;

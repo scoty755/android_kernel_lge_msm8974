@@ -58,7 +58,94 @@ static int mdss_dsi_regulator_init(struct platform_device *pdev)
 			ctrl_pdata->power_data.num_vreg, 1);
 }
 
-#if defined(CONFIG_B1_LGD_PANEL)
+#if defined(CONFIG_OLED_SUPPORT)
+int mdss_dsi_lane_config(struct mdss_panel_data *pdata, int enable)
+{
+	u32 tmp;
+	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
+
+	if (pdata == NULL) {
+		pr_err("%s: Invalid input data\n", __func__);
+		return -EINVAL;
+	}
+
+	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
+				panel_data);
+
+	tmp = MIPI_INP((ctrl_pdata->ctrl_base) + 0xac);
+	pr_info("%s+: dsi_lane_ctrl=0x%x\n", __func__, tmp);
+	if (enable) {
+		tmp |= DSI_LANE_CTRL_HS_MASK;
+		MIPI_OUTP((ctrl_pdata->ctrl_base) + 0xac, tmp);
+		wmb();
+	} else {
+		tmp &= DSI_LANE_CTRL_LP_MASK;
+		MIPI_OUTP((ctrl_pdata->ctrl_base) + 0xac, tmp);
+		wmb();
+	}
+	pr_info("%s-: current mode=%s dsi_lane_ctrl=0x%x\n", __func__, (enable ? "hs" : "lp"), tmp);
+	return 0;
+}
+EXPORT_SYMBOL(mdss_dsi_lane_config);
+
+int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
+{
+	int ret;
+	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
+
+	if (pdata == NULL) {
+		pr_err("%s: Invalid input data\n", __func__);
+		return -EINVAL;
+	}
+
+	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
+				panel_data);
+	pr_debug("%s: enable=%d\n", __func__, enable);
+
+       /* Z OLED power on start */
+	if (enable) {
+		ret = msm_dss_enable_vreg(
+			ctrl_pdata->power_data.vreg_config,
+			ctrl_pdata->power_data.num_vreg, 1);
+		if (ret) {
+			pr_err("%s:Failed to enable regulators.rc=%d\n",
+				__func__, ret);
+			return ret;
+		}
+
+		if (gpio_is_valid(ctrl_pdata->disp_en_gpio)) {
+			gpio_set_value((ctrl_pdata->disp_en_gpio), 1);
+			msleep(1);
+		} else
+			pr_debug("%s:%d, reset line not configured\n",
+			   __func__, __LINE__);
+		/*
+		 * A small delay is needed here after enabling
+		 * all regulators and before issuing panel reset
+		 */
+		msleep(10);
+	/* Z OLED power off start */
+	} else {
+		msleep(20);
+		mdss_dsi_panel_reset(pdata, 0);
+		msleep(20);
+
+		ret = msm_dss_enable_vreg(
+			/*ctrl_pdata->power_data.vreg_config*/ctrl_pdata->power_data.vreg_config+1,
+			/*ctrl_pdata->power_data.num_vreg*/1, 0);
+		if (ret) {
+			pr_err("%s: Failed to disable regs.rc=%d\n",
+				__func__, ret);
+			return ret;
+		}
+
+		gpio_set_value((ctrl_pdata->disp_en_gpio), 0);
+		msleep(1);
+	}
+	pr_info("[Zee][OLED] mdss_dsi_panel_power %s\n", enable ? "on" : "off");
+	return 0;
+}
+#elif defined(CONFIG_B1_LGD_PANEL)
 /*
  * lk turns on LCD and so kernel doesn't do it again if cont_splash is enabled
  * dsi_panel_device_register function sets panel_power_on to true
@@ -457,7 +544,11 @@ static int mdss_dsi_get_panel_cfg(char *panel_cfg)
 	return rc;
 }
 
+#ifdef CONFIG_OLED_SUPPORT
+int mdss_dsi_off(struct mdss_panel_data *pdata)
+#else
 static int mdss_dsi_off(struct mdss_panel_data *pdata)
+#endif
 {
 	int ret = 0;
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
@@ -533,6 +624,9 @@ static int mdss_dsi_off(struct mdss_panel_data *pdata)
 
 	return ret;
 }
+#ifdef CONFIG_OLED_SUPPORT
+EXPORT_SYMBOL(mdss_dsi_off);
+#endif
 
 static void __mdss_dsi_ctrl_setup(struct mdss_panel_data *pdata)
 {
@@ -944,7 +1038,11 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 	}
 #endif
 
-#if defined(CONFIG_B1_LGD_PANEL)
+#if defined(CONFIG_OLED_SUPPORT)
+	msleep(10);
+	mdss_dsi_panel_reset(pdata, 1);
+	msleep(20);
+#elif defined(CONFIG_B1_LGD_PANEL)
 	msleep(10);
 	ret = mdss_dsi_panel_reset(pdata, 1);
 	if (ret) {
@@ -1645,7 +1743,18 @@ static int __devinit mdss_dsi_ctrl_probe(struct platform_device *pdev)
 		goto error_pan_node;
 	}
 
-#if defined(CONFIG_LGE_MIPI_DZNY_JDI_INCELL_FHD_VIDEO_PANEL)
+#ifdef CONFIG_OLED_SUPPORT
+	/* LGE_CHANGE
+	 * To prevent mdss_isr at first booting time (case#01426280)
+	 * MDSS_DSI_0_COMMAND_MODE_DMA_CTRL
+	 * set BIT(26) to change the HIGH_SPEED_MODE
+	 * 2014-01-22, isaac.park@lge.com
+	 */
+	if (lge_get_cont_splash_enabled()) {
+		MIPI_OUTP(ctrl_pdata->ctrl_base + 0x3c, 0x10000000);
+		wmb();
+	}
+#elif defined(CONFIG_LGE_MIPI_DZNY_JDI_INCELL_FHD_VIDEO_PANEL)
     touch_driver_registered = false;
 	ctrl_pdata->notif.notifier_call = lcd_notifier_callback;
 

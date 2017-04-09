@@ -37,12 +37,21 @@
 #define DT_CMD_HDR 6
 
 #ifdef CONFIG_MACH_LGE
+#ifdef CONFIG_OLED_SUPPORT
+#include "mdss_mdp.h"
+#include "mdss_fb.h"
+extern struct msm_fb_data_type *mfd_base;
+#endif
 extern struct platform_device *of_find_device_by_node(struct device_node *np);
 static struct dsi_panel_cmds lge_ief_on_cmds;
 static struct dsi_panel_cmds lge_ief_off_cmds;
 struct mdss_panel_data *pdata_base;
 extern struct msm_fb_data_type *mfd_base;
 #include "mdss_mdp.h"
+#endif
+
+#if defined(CONFIG_OLED_SUPPORT)
+extern int mdss_dsi_off(struct mdss_panel_data *pdata);
 #endif
 
 #ifdef CONFIG_LGE_SUPPORT_LCD_MAKER_ID
@@ -254,7 +263,17 @@ static void mdss_dsi_panel_bklt_dcs(struct mdss_dsi_ctrl_pdata *ctrl, int level)
 
 	pr_debug("%s: level=%d\n", __func__, level);
 
+#ifdef CONFIG_OLED_SUPPORT
+	if (bl_tune_mode)
+		led_pwm1[1] = (unsigned char)ctrl->panel_data.panel_info.blmap[level];
+	else
+		led_pwm1[1] = (unsigned char)level;
+
+	pr_info("[Zee][OLED] %s: level=%d, blmap=%d, blackout=%s\n",
+			__func__, level, led_pwm1[1], (blackout_mode ? "true" : "false"));
+#else
 	led_pwm1[1] = (unsigned char)level;
+#endif
 
 	memset(&cmdreq, 0, sizeof(cmdreq));
 	cmdreq.cmds = &backlight_cmd;
@@ -265,7 +284,34 @@ static void mdss_dsi_panel_bklt_dcs(struct mdss_dsi_ctrl_pdata *ctrl, int level)
 
 	mdss_dsi_cmdlist_put(ctrl, &cmdreq);
 }
-#if defined(CONFIG_MACH_MSM8974_G3) || defined(CONFIG_MACH_MSM8974_DZNY)
+#ifdef CONFIG_OLED_SUPPORT
+static char oled_blackout[17] = { 0xB6,
+	0x00, 0x57, 0x39, 0xBA, 0xA9, 0xA0, 0xE0, 0xFF,
+	0xD4, 0xA8, 0xFF, 0xD4, 0xA8, 0xFF, 0xD4, 0xA8
+};
+static struct dsi_cmd_desc oled_blackout_cmd = {
+	{DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(oled_blackout)},
+	oled_blackout
+};
+
+static void mdss_dsi_panel_blackout_dcs(struct mdss_dsi_ctrl_pdata *ctrl, int enable)
+{
+	struct dcs_cmd_req cmdreq;
+	if (enable)	// show the black screen
+			oled_blackout[6] = 0xA0;
+	else		// do not show the black screen
+			oled_blackout[6] = 0xA8;
+
+	memset(&cmdreq, 0, sizeof(cmdreq));
+	cmdreq.cmds = &oled_blackout_cmd;
+	cmdreq.cmds_cnt = 1;
+	cmdreq.flags = CMD_REQ_COMMIT | CMD_CLK_CTRL;
+	cmdreq.rlen = 0;
+	cmdreq.cb = NULL;
+
+	mdss_dsi_cmdlist_put(ctrl, &cmdreq);
+}
+#elif defined(CONFIG_MACH_MSM8974_G3) || defined(CONFIG_MACH_MSM8974_DZNY)
 void mdss_dsi_panel_io(struct mdss_panel_data *pdata, int enable)
 {
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
@@ -678,6 +724,11 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 {
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
 
+#ifdef CONFIG_OLED_SUPPORT
+	struct mipi_panel_info *mipi;
+	mipi  = &pdata->panel_info.mipi;
+#endif
+
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
 		return;
@@ -703,6 +754,24 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 		mdss_dsi_panel_bklt_pwm(ctrl_pdata, bl_level);
 		break;
 	case BL_DCS_CMD:
+#ifdef CONFIG_OLED_SUPPORT
+		if (mipi->mode == DSI_VIDEO_MODE) {
+			if (bl_level > 0xFF)
+				bl_level = 0xFF;
+		} else {
+			pr_err("%s:%d, CMD MODE NOT SUPPORTED", __func__, __LINE__);
+			return;
+		}
+		if (bl_level == 0x0 && !blackout_mode) {
+				mdss_dsi_panel_blackout_dcs(ctrl_pdata, 1);
+				blackout_mode = 1;
+		} else if (bl_level != 0x0 && blackout_mode)  {
+				mdss_dsi_panel_blackout_dcs(ctrl_pdata, 0);
+				blackout_mode = 0;
+		}
+		mdss_dsi_panel_bklt_dcs(ctrl_pdata, bl_level);
+		break;
+#else
 		mdss_dsi_panel_bklt_dcs(ctrl_pdata, bl_level);
 		if (mdss_dsi_is_master_ctrl(ctrl_pdata)) {
 			struct mdss_dsi_ctrl_pdata *sctrl =
@@ -715,6 +784,7 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 			mdss_dsi_panel_bklt_dcs(sctrl, bl_level);
 		}
 		break;
+#endif
 #if defined(CONFIG_MACH_LGE_BACKLIGHT_SUPPORT)
 	case BL_OTHERS:
 		if (!bl_dev)
@@ -753,6 +823,11 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 
 	if (ctrl->on_cmds.cmd_cnt)
 		mdss_dsi_panel_cmds_send(ctrl, &ctrl->on_cmds);
+
+#ifdef CONFIG_OLED_SUPPORT
+	mdss_dsi_panel_img_tune_apply(IMG_TUNE_COUNT);
+	pr_info("[Zee][OLED] %s success\n", __func__);
+#endif
 
 	pr_info("%s-:\n", __func__);
 	return 0;
@@ -1349,6 +1424,9 @@ static int mdss_panel_parse_dt(struct device_node *np,
 	u32 tmp;
 	int rc, i, len;
 	const char *data;
+#ifdef CONFIG_OLED_SUPPORT
+	u32 *array;
+#endif
 	static const char *pdest;
 	struct mdss_panel_info *pinfo = &(ctrl_pdata->panel_data.panel_info);
 
@@ -1497,6 +1575,35 @@ static int mdss_panel_parse_dt(struct device_node *np,
 	rc = of_property_read_u32(np, "qcom,mdss-dsi-bl-max-level", &tmp);
 	pinfo->bl_max = (!rc ? tmp : 255);
 	ctrl_pdata->bklt_max = pinfo->bl_max;
+
+#ifdef CONFIG_OLED_SUPPORT
+	rc = of_property_read_u32(np, "qcom,blmap_size", &tmp);
+	pinfo->blmap_size = (!rc ? tmp : 0);
+
+	if (pinfo->blmap_size) {
+		array = kzalloc(sizeof(u32) * pinfo->blmap_size, GFP_KERNEL);
+		if (!array)
+			return -ENOMEM;
+
+		rc = of_property_read_u32_array(np, "qcom,blmap", array, pinfo->blmap_size);
+		if (rc) {
+			pr_err("%s:%d, unable to read backlight map\n",__func__, __LINE__);
+			return -EINVAL;
+		}
+		pinfo->blmap = kzalloc(sizeof(char) * pinfo->blmap_size, GFP_KERNEL);
+
+		if (!pinfo->blmap)
+			return -ENOMEM;
+
+		for (i = 0; i < pinfo->blmap_size; i++ )
+			pinfo->blmap[i] = (char)array[i];
+
+		if (array)
+			kfree(array);
+	} else {
+		pinfo->blmap = NULL;
+	}
+#endif
 
 	rc = of_property_read_u32(np, "qcom,mdss-dsi-interleave-mode", &tmp);
 	pinfo->mipi.interleave_mode = (!rc ? tmp : 0);

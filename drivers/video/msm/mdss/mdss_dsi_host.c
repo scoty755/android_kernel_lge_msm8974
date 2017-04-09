@@ -28,6 +28,11 @@
 #include "mdss_panel.h"
 #include "mdss_debug.h"
 
+#ifdef CONFIG_OLED_SUPPORT
+#define LGE_HRTIMER_OLED_PATCH 1
+#include <linux/time.h>		/* for using do_gettimeofday */
+#endif
+
 #define VSYNC_PERIOD 17
 
 struct mdss_dsi_ctrl_pdata *ctrl_list[DSI_CTRL_MAX];
@@ -90,6 +95,9 @@ void mdss_dsi_ctrl_init(struct mdss_dsi_ctrl_pdata *ctrl)
 
 	pr_debug("%s: ndx=%d base=%p\n", __func__, ctrl->ndx, ctrl->ctrl_base);
 
+#ifdef LGE_HRTIMER_OLED_PATCH
+	hrtimer_init(&oled_hrtimer, HRTIMER_BASE_MONOTONIC, HRTIMER_MODE_REL_PINNED);
+#endif
 	init_completion(&ctrl->dma_comp);
 	init_completion(&ctrl->mdp_comp);
 	init_completion(&ctrl->video_comp);
@@ -777,6 +785,15 @@ static int mdss_dsi_cmds2buf_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 	struct dsi_ctrl_hdr *dchdr;
 	int len, wait, tot = 0;
 
+#ifdef CONFIG_OLED_SUPPORT
+#ifdef LGE_HRTIMER_OLED_PATCH
+#else
+	struct timeval tv_start, tv_end;
+	long tv_diff;
+	int delay_count;
+#endif
+#endif
+
 	tp = &ctrl->tx_buf;
 	mdss_dsi_buf_init(tp);
 	cm = cmds;
@@ -805,8 +822,36 @@ static int mdss_dsi_cmds2buf_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 				return -EINVAL;
 			}
 
+#ifdef CONFIG_OLED_SUPPORT
+#ifdef LGE_HRTIMER_OLED_PATCH
+			if (!wait || dchdr->wait/* > VSYNC_PERIOD*/) {
+				pr_info("[Zee][OLED] mipi_dsi_tx(0x%X) start (target delay=%dms)\n", cm->payload[0], (int)dchdr->wait);
+
+				if (dchdr->wait > 5)
+					oled_hrtimer_delay(dchdr->wait);
+				else
+					mdelay(dchdr->wait);
+
+				pr_info("[Zee][OLED] mipi_dsi_tx(0x%X) finish (target delay=%dms)\n", cm->payload[0], (int)dchdr->wait);
+			}
+#else
+			if (!wait || dchdr->wait/* > VSYNC_PERIOD*/) {
+				delay_count = 0;
+				do_gettimeofday(&tv_start);
+				do {
+					mdelay(1);
+					do_gettimeofday(&tv_end);
+					tv_diff = ((tv_end.tv_sec - tv_start.tv_sec) * 1000000) /* sec */
+						+ (tv_end.tv_usec - tv_start.tv_usec);			/* usec */
+					delay_count++;
+				} while (dchdr->wait * 1000 > tv_diff);
+				pr_info("%s: 0x%X needs %d(ms) delay and real delay is %ld(us), delay_count(%d).\n", __func__, cm->payload[0], (int)dchdr->wait, tv_diff, delay_count);
+			}
+#endif
+#else
 			if (!wait || dchdr->wait > VSYNC_PERIOD)
 				usleep(dchdr->wait * 1000);
+#endif
 
 			mdss_dsi_buf_init(tp);
 			len = 0;

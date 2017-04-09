@@ -26,6 +26,28 @@
 #include "mdss_mdp_trace.h"
 #include "mdss_debug.h"
 
+#ifndef CONFIG_OLED_SUPPORT
+#define MDSS_MDP_BUS_FACTOR_SHIFT 10
+#define MDSS_MDP_BUS_FUDGE_FACTOR_IB(val) (((val) / 2) * 3)
+#define MDSS_MDP_BUS_FUDGE_FACTOR_HIGH_IB(val) (val << 1)
+#define MDSS_MDP_BUS_FUDGE_FACTOR_AB(val) (val << 1)
+#define MDSS_MDP_BUS_FLOOR_BW (1600000000ULL >> MDSS_MDP_BUS_FACTOR_SHIFT)
+#endif
+
+#ifdef CONFIG_OLED_SUPPORT
+/* LGE_CHANGE
+ * This is for slimport underrun(plug/unplug) patch from case#01249713
+ * 2013-07-22, minkyeong.kim@lge.com
+ */
+#define QMC_SLIMPORT_UNDERRUN_PATCH
+/* LGE_CHANGE
+ * This is for power on/off test patch from case#01266650
+ * Patch to prevent kernel crash occur at mdss_mdp_video_line_count
+ * 2013-08-09, isaac.park@lge.com
+ */
+#define QMC_POWERONOFF_PATCH
+#endif
+
 static void mdss_mdp_xlog_mixer_reg(struct mdss_mdp_ctl *ctl);
 static inline u64 fudge_factor(u64 val, u32 numer, u32 denom)
 {
@@ -55,6 +77,34 @@ static inline u32 mdp_mixer_read(struct mdss_mdp_mixer *mixer, u32 reg)
 {
 	return readl_relaxed(mixer->base + reg);
 }
+
+#if 0
+#ifndef CONFIG_OLED_SUPPORT
+static u32 __mdss_mdp_ctrl_perf_ovrd_helper(struct mdss_mdp_mixer *mixer,
+		u32 *npipe)
+{
+	struct mdss_panel_info *pinfo;
+	struct mdss_mdp_pipe *pipe;
+	u32 mnum, ovrd = 0;
+
+	if (!mixer || !mixer->ctl->panel_data)
+		return 0;
+
+	pinfo = &mixer->ctl->panel_data->panel_info;
+	for (mnum = 0; mnum < MDSS_MDP_MAX_STAGE; mnum++) {
+		pipe = mixer->stage_pipe[mnum];
+		if (pipe && pinfo) {
+			*npipe = *npipe + 1;
+			if ((pipe->src.w >= pipe->src.h) &&
+					(pipe->src.w >= pinfo->xres))
+				ovrd = 1;
+		}
+	}
+
+	return ovrd;
+}
+#endif
+#endif
 
 static inline u32 mdss_mdp_get_pclk_rate(struct mdss_mdp_ctl *ctl)
 {
@@ -114,6 +164,54 @@ static inline bool mdss_mdp_perf_is_caf(struct mdss_mdp_pipe *pipe)
 		pipe->src_fmt->is_yuv && ((pipe->src.h >> pipe->vert_deci) <=
 			pipe->dst.h));
 }
+
+#if 0
+#ifndef CONFIG_OLED_SUPPORT
+/**
+ * mdss_mdp_ctrl_perf_ovrd() - Determines if performance override is needed
+ * @mdata:	Struct containing references to all MDP5 hardware structures
+ *		and status info such as interupts, target caps etc.
+ * @ab_quota:	Arbitrated bandwidth quota
+ * @ib_quota:	Instantaneous bandwidth quota
+ *
+ * Function calculates the minimum required MDP and BIMC clocks to avoid MDP
+ * underflow during portrait video playback. The calculations are based on the
+ * way MDP fetches (bandwidth requirement) and processes data through
+ * MDP pipeline (MDP clock requirement) based on frame size and scaling
+ * requirements.
+ */
+static void __mdss_mdp_ctrl_perf_ovrd(struct mdss_data_type *mdata,
+	u64 *ab_quota, u64 *ib_quota)
+{
+	struct mdss_mdp_ctl *ctl;
+	u32 i, npipe = 0, ovrd = 0;
+
+	for (i = 0; i < mdata->nctl; i++) {
+		ctl = mdata->ctl_off + i;
+		if (!ctl->power_on)
+			continue;
+		ovrd |= __mdss_mdp_ctrl_perf_ovrd_helper(
+				ctl->mixer_left, &npipe);
+		ovrd |= __mdss_mdp_ctrl_perf_ovrd_helper(
+				ctl->mixer_right, &npipe);
+	}
+
+	*ab_quota = MDSS_MDP_BUS_FUDGE_FACTOR_AB(*ab_quota);
+	if (npipe > 1)
+		*ib_quota = MDSS_MDP_BUS_FUDGE_FACTOR_HIGH_IB(*ib_quota);
+	else
+		*ib_quota = MDSS_MDP_BUS_FUDGE_FACTOR_IB(*ib_quota);
+
+	if (ovrd && (*ib_quota < MDSS_MDP_BUS_FLOOR_BW)) {
+		*ib_quota = MDSS_MDP_BUS_FLOOR_BW;
+		pr_debug("forcing the BIMC clock to 200 MHz : %llu bytes",
+			*ib_quota);
+	} else {
+		pr_debug("ib quota : %llu bytes", *ib_quota);
+	}
+}
+#endif
+#endif
 
 static inline u32 mdss_mdp_calc_y_scaler_bytes(struct mdss_mdp_prefill_params
 	*params, struct mdss_prefill_data *prefill)
@@ -406,6 +504,44 @@ int mdss_mdp_perf_calc_pipe(struct mdss_mdp_pipe *pipe,
 		rate = (rate * src_h) / dst.h;
 
 	rate *= v_total * fps;
+#ifdef CONFIG_OLED_SUPPORT
+	if (pipe->src_fmt->is_yuv) {
+		if (mixer->rotator_mode) {
+			rate /= 4;	/* block mode fetch at 4 pix/clk */
+			quota *= 3;
+			perf->ib_quota = quota;
+			if(pipe->img_width > 1920 || pipe->img_height > 1920) {
+				high_resolution = 1;
+				if(perf_change_cnt < 100)
+					rate = 200000000;	/* fix MDP clock */
+			}
+		} else {
+			if(high_resolution) {
+				if(src_h_priv == pipe->src.h)
+					perf_change_cnt++;
+				else
+					perf_change_cnt = 0;
+				if(perf_change_cnt < 100)
+					rate = 200000000;	/* fix MDP clock */
+				high_resolution = 0;
+				src_h_priv = pipe->src.h;
+			}
+			quota *= 2;
+			perf->ib_quota = (quota / pipe->dst.h) * v_total;
+		}
+	} else {
+		if (mixer->rotator_mode) {
+			rate /= 4;	/* block mode fetch at 4 pix/clk */
+			quota *= 2;	/* bus read + write */
+			perf->ib_quota = quota;
+		} else {
+			quota *= 2;
+			perf->ib_quota = (quota / pipe->dst.h) * v_total;
+		}
+	}
+	perf->ab_quota = quota;
+	perf->mdp_clk_rate = rate;
+#else
 	if (mixer->rotator_mode) {
 		rate /= 4; /* block mode fetch at 4 pix/clk */
 		quota *= 2; /* bus read + write */
@@ -418,6 +554,7 @@ int mdss_mdp_perf_calc_pipe(struct mdss_mdp_pipe *pipe,
 		perf->mdp_clk_rate = mdss_mdp_clk_fudge_factor(mixer, rate);
 	else
 		perf->mdp_clk_rate = rate;
+#endif
 
 	prefill_params.smp_bytes = mdss_mdp_smp_get_size(pipe);
 	prefill_params.xres = xres;
@@ -2676,7 +2813,7 @@ int mdss_mdp_display_wait4comp(struct mdss_mdp_ctl *ctl)
 
 	trace_mdp_commit(ctl);
 
-#ifdef VIDEO_PLAYBACK_AB_1_1_G3
+#if defined(VIDEO_PLAYBACK_AB_1_1_G3) || defined(CONFIG_OLED_SUPPORT)
 	if (ctl->mixer_left && !ctl->mixer_left->rotator_mode)
 #endif
 		mdss_mdp_ctl_perf_update(ctl, 0);

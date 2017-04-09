@@ -325,6 +325,10 @@ struct mdss_panel_info {
 	int pwm_pmic_gpio;
 	int pwm_lpg_chan;
 	int pwm_period;
+#ifdef CONFIG_OLED_SUPPORT
+	int blmap_size;
+	char *blmap;
+#endif
 	u32 mode_gpio_state;
 	bool dynamic_fps;
 	bool ulps_feature_enabled;

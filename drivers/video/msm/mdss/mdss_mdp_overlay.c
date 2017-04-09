@@ -300,11 +300,28 @@ int mdss_mdp_overlay_req_check(struct msm_fb_data_type *mfd,
 	return 0;
 }
 
+#ifdef CONFIG_OLED_SUPPORT
+#define MUCH_DOWNSCALE(pipe) ((pipe->dst.w * 3) < pipe->src.w)
+#endif
+
 static int __mdp_pipe_tune_perf(struct mdss_mdp_pipe *pipe)
 {
 	struct mdss_data_type *mdata = pipe->mixer->ctl->mdata;
 	struct mdss_mdp_perf_params perf;
 	int rc;
+
+#ifdef CONFIG_OLED_SUPPORT
+	if (pipe->src_fmt->is_yuv && MUCH_DOWNSCALE(pipe)) {
+		if(mdata->has_decimation && !pipe->bwc_mode &&
+				(pipe->vert_deci < MAX_DECIMATION)) {
+			pipe->vert_deci++;
+		} else {
+			pr_debug("%s : Falling back to GPU comp.\
+					due to too much downscale\n", __func__);
+			return -EPERM;
+		}
+	}
+#endif
 
 	for (;;) {
 		rc = mdss_mdp_perf_calc_pipe(pipe, &perf, NULL, true);
@@ -2923,9 +2940,20 @@ static int mdss_mdp_overlay_on(struct msm_fb_data_type *mfd)
 			rc = mdss_mdp_overlay_kickoff(mfd, NULL);
 		}
 	} else {
+#ifdef CONFIG_OLED_SUPPORT
+		if ((lge_get_boot_mode() == LGE_BOOT_MODE_MINIOS) &&
+				(mfd->panel_info->type == DTV_PANEL))
+			rc = mdss_mdp_overlay_start(mfd);
+		else {
+			rc = mdss_mdp_ctl_setup(mdp5_data->ctl);
+			if (rc)
+				return rc;
+		}
+#else
 		rc = mdss_mdp_ctl_setup(mdp5_data->ctl);
 		if (rc)
 			return rc;
+#endif
 	}
 
 	if (IS_ERR_VALUE(rc)) {

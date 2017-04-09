@@ -1105,6 +1105,9 @@ static int mdss_fb_blank_sub(int blank_mode, struct fb_info *info,
 			     int op_enable)
 {
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
+#ifdef CONFIG_OLED_SUPPORT
+	struct mdss_panel_data *pdata = dev_get_platdata(&mfd->pdev->dev);
+#endif
 	int ret = 0;
 
 	if (!op_enable)
@@ -1152,6 +1155,13 @@ static int mdss_fb_blank_sub(int blank_mode, struct fb_info *info,
 			int curr_pwr_state;
 #ifdef CONFIG_LGE_LCD_OFF_DIMMING
 			fb_blank_called = true;
+#elif defined(CONFIG_OLED_SUPPORT)
+	 /* to hide blinking screen when system reset */
+	 if (mfd->index==0) {
+			mfd->bl_updated = 1;
+			pdata->set_backlight(pdata, 0);
+			mfd->unset_bl_level = -BOOT_BRIGHTNESS;
+	 }
 #endif
 			mutex_lock(&mfd->update.lock);
 			mfd->update.type = NOTIFY_TYPE_SUSPEND;
@@ -1617,8 +1627,13 @@ static int mdss_fb_register(struct msm_fb_data_type *mfd)
 	var->grayscale = 0,	/* No graylevels */
 	var->nonstd = 0,	/* standard pixel format */
 	var->activate = FB_ACTIVATE_VBL,	/* activate it at vsync */
+#if defined(CONFIG_OLED_SUPPORT)
+	var->height = 132,	/* height of picture in mm */
+	var->width = 74,	/* width of picture in mm */
+#else /*QMC original code */
 	var->height = -1,	/* height of picture in mm */
 	var->width = -1,	/* width of picture in mm */
+#endif
 	var->accel_flags = 0,	/* acceleration flags */
 	var->sync = 0,	/* see FB_SYNC_* */
 	var->rotate = 0,	/* angle we rotate counter clockwise */

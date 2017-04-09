@@ -449,6 +449,17 @@ static int mdss_dsi_clk_ctrl_sub(struct mdss_dsi_ctrl_pdata *ctrl,
 					rc);
 				goto error;
 			}
+#ifdef CONFIG_OLED_SUPPORT
+			if (!ctrl->panel_data.panel_info.cont_splash_enabled) {
+				rc = mdss_dsi_clk_set_rate(ctrl);
+				if (rc) {
+					pr_err("%s: failed to set clk rates. rc=%d\n",
+							__func__, rc);
+					mdss_dsi_disable_bus_clocks(ctrl);
+					goto error;
+				}
+			}
+#endif
 		}
 		if (clk_type & DSI_LINK_CLKS) {
 			rc = mdss_dsi_link_clk_start(ctrl);
@@ -666,6 +677,9 @@ void mdss_dsi_phy_init(struct mdss_panel_data *pdata)
 	pd = &(((ctrl_pdata->panel_data).panel_info.mipi).dsi_phy_db);
 
 	/* Strength ctrl 0 */
+#ifdef CONFIG_OLED_SUPPORT
+	MIPI_OUTP((ctrl_pdata->ctrl_base) + 0x0484, 0x07);
+#endif
 	MIPI_OUTP((ctrl_pdata->phy_io.base) + 0x0184, pd->strength[0]);
 
 	/*
