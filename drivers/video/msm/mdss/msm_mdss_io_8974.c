@@ -678,7 +678,7 @@ void mdss_dsi_phy_init(struct mdss_panel_data *pdata)
 
 	/* Strength ctrl 0 */
 #ifdef CONFIG_OLED_SUPPORT
-	MIPI_OUTP((ctrl_pdata->ctrl_base) + 0x0484, 0x07);
+	MIPI_OUTP((ctrl_pdata->phy_io.base) + 0x0184, 0x07);
 #endif
 	MIPI_OUTP((ctrl_pdata->phy_io.base) + 0x0184, pd->strength[0]);
 
