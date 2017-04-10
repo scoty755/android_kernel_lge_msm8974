@@ -358,12 +358,23 @@ static int mdss_dsi_link_clk_start(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 {
 	int rc = 0;
 
+#ifdef CONFIG_OLED_SUPPORT
+	if (!ctrl->panel_data.panel_info.cont_splash_enabled) {
+		rc = mdss_dsi_link_clk_set_rate(ctrl_pdata);
+		if (rc) {
+			pr_err("%s: failed to set clk rates. rc=%d\n",
+				__func__, rc);
+			goto error;
+		}
+	}
+#else
 	rc = mdss_dsi_link_clk_set_rate(ctrl_pdata);
 	if (rc) {
 		pr_err("%s: failed to set clk rates. rc=%d\n",
 			__func__, rc);
 		goto error;
 	}
+#endif
 
 	rc = clk_prepare_enable(ctrl_pdata->esc_clk);
 	if (rc) {
@@ -449,17 +460,6 @@ static int mdss_dsi_clk_ctrl_sub(struct mdss_dsi_ctrl_pdata *ctrl,
 					rc);
 				goto error;
 			}
-#ifdef CONFIG_OLED_SUPPORT
-			if (!ctrl->panel_data.panel_info.cont_splash_enabled) {
-				rc = mdss_dsi_clk_set_rate(ctrl);
-				if (rc) {
-					pr_err("%s: failed to set clk rates. rc=%d\n",
-							__func__, rc);
-					mdss_dsi_disable_bus_clocks(ctrl);
-					goto error;
-				}
-			}
-#endif
 		}
 		if (clk_type & DSI_LINK_CLKS) {
 			rc = mdss_dsi_link_clk_start(ctrl);
