@@ -507,9 +507,9 @@ int mdss_mdp_perf_calc_pipe(struct mdss_mdp_pipe *pipe,
 #ifdef CONFIG_OLED_SUPPORT
 	if (pipe->src_fmt->is_yuv) {
 		if (mixer->rotator_mode) {
-			rate /= 4;	/* block mode fetch at 4 pix/clk */
-			quota *= 3;
-			perf->ib_quota = quota;
+			rate /= 4; /* block mode fetch at 4 pix/clk */
+			quota *= 3; /* bus read + write */
+			perf->bw_overlap = quota;
 			if(pipe->img_width > 1920 || pipe->img_height > 1920) {
 				high_resolution = 1;
 				if(perf_change_cnt < 100)
@@ -527,20 +527,18 @@ int mdss_mdp_perf_calc_pipe(struct mdss_mdp_pipe *pipe,
 				src_h_priv = pipe->src.h;
 			}
 			quota *= 2;
-			perf->ib_quota = (quota / pipe->dst.h) * v_total;
+			perf->bw_overlap = (quota / pipe->dst.h) * v_total;
 		}
 	} else {
 		if (mixer->rotator_mode) {
 			rate /= 4;	/* block mode fetch at 4 pix/clk */
 			quota *= 2;	/* bus read + write */
-			perf->ib_quota = quota;
+			perf->bw_overlap = quota;
 		} else {
 			quota *= 2;
-			perf->ib_quota = (quota / pipe->dst.h) * v_total;
+			perf->bw_overlap = (quota / dst.h) * v_total;
 		}
 	}
-	perf->ab_quota = quota;
-	perf->mdp_clk_rate = rate;
 #else
 	if (mixer->rotator_mode) {
 		rate /= 4; /* block mode fetch at 4 pix/clk */
@@ -549,12 +547,12 @@ int mdss_mdp_perf_calc_pipe(struct mdss_mdp_pipe *pipe,
 	} else {
 		perf->bw_overlap = (quota / dst.h) * v_total;
 	}
+#endif
 
 	if (apply_fudge)
 		perf->mdp_clk_rate = mdss_mdp_clk_fudge_factor(mixer, rate);
 	else
 		perf->mdp_clk_rate = rate;
-#endif
 
 	prefill_params.smp_bytes = mdss_mdp_smp_get_size(pipe);
 	prefill_params.xres = xres;
@@ -2183,6 +2181,11 @@ int mdss_mdp_ctl_stop(struct mdss_mdp_ctl *ctl)
 
 	mutex_unlock(&ctl->lock);
 
+#ifdef CONFIG_OLED_SUPPORT
+	perf_change_cnt = 0;
+	high_resolution = 0;
+	src_h_priv = 0;
+#endif
 	return ret;
 }
 
