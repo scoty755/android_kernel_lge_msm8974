@@ -763,13 +763,13 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 			return;
 		}
 		if (bl_level == 0x0 && !blackout_mode) {
-				mdss_dsi_panel_blackout_dcs(ctrl_pdata, 1);
+				mdss_dsi_panel_blackout_dcs(sctrl, 1);
 				blackout_mode = 1;
 		} else if (bl_level != 0x0 && blackout_mode)  {
-				mdss_dsi_panel_blackout_dcs(ctrl_pdata, 0);
+				mdss_dsi_panel_blackout_dcs(sctrl, 0);
 				blackout_mode = 0;
 		}
-		mdss_dsi_panel_bklt_dcs(ctrl_pdata, bl_level);
+		mdss_dsi_panel_bklt_dcs(sctrl, bl_level);
 		break;
 #else
 		mdss_dsi_panel_bklt_dcs(ctrl_pdata, bl_level);
