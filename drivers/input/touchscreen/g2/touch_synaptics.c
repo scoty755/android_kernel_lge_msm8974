@@ -1729,6 +1729,7 @@ err_alloc_data_failed:
 }
 
 
+#if 0
 #if defined(CONFIG_LGE_Z_TOUCHSCREEN)
 int synaptics_ts_resolution(struct i2c_client *client)
 {
@@ -1756,6 +1757,7 @@ int synaptics_ts_resolution(struct i2c_client *client)
 
 	return 0;
 }
+#endif
 #endif
 
 void synaptics_ts_remove(struct i2c_client *client)
@@ -2031,12 +2033,21 @@ int synaptics_ts_ic_ctrl(struct i2c_client *client, u8 code, u16 value)
 							kfree(r_mem);
 						return -EIO;
 					}
+#if defined(CONFIG_LGE_Z_TOUCHSCREEN)
+					if(touch_i2c_write_byte(ts->client, 0x10, 20) < 0) {
+						TOUCH_ERR_MSG("DOZE_WAKEUP_TRESHOLD_REG write fail");
+						if(r_mem != NULL)
+							kfree(r_mem);
+						return -EIO;
+					}
+#else
 					if (touch_i2c_write_byte(ts->client, 0x10, 30) < 0) {
 						TOUCH_ERR_MSG("DOZE_WAKEUP_TRESHOLD_REG write fail");
 						if (r_mem != NULL)
 							kfree(r_mem);
 						return -EIO;
 					}
+#endif
 
 					if (touch_i2c_read(ts->client, REPORT_WAKEUP_GESTURE_ONLY_REG, (3), r_mem) < 0) {
 						TOUCH_ERR_MSG("%d bytes read fail!", (3));
@@ -2479,8 +2490,10 @@ error:
 
 struct touch_device_driver synaptics_ts_driver = {
 	.probe		= synaptics_ts_probe,
+#if 0
 #if defined(CONFIG_LGE_Z_TOUCHSCREEN)
 	.resolution = synaptics_ts_resolution,
+#endif
 #endif
 	.remove		= synaptics_ts_remove,
 	.init  	= synaptics_ts_init,
