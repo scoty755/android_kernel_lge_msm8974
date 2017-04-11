@@ -880,6 +880,7 @@ static struct msm_gpiomux_config msm_blsp2_uart7_configs[] __initdata = {
 			[GPIOMUX_SUSPENDED] = &gpio_uart7_suspend_cfg,
 		},
 	},
+#if 0
 	{
 		.gpio	= 44,	/* BLSP2 UART7 RFR */
 		.settings = {
@@ -887,6 +888,7 @@ static struct msm_gpiomux_config msm_blsp2_uart7_configs[] __initdata = {
 			[GPIOMUX_SUSPENDED] = &gpio_uart7_suspend_cfg,
 		},
 	},
+#endif
 };
 #endif
 
