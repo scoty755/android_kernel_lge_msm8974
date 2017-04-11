@@ -17,6 +17,8 @@
 #include "RefCode_F54.h"
 #if defined(CONFIG_MACH_MSM8974_VU3_KR)
 #include "TestLimits_vu3.h"
+#elif defined(CONFIG_LGE_Z_TOUCHSCREEN)
+#include "TestLimits_zee.h"
 #else
 #include "TestLimits.h"
 #endif
