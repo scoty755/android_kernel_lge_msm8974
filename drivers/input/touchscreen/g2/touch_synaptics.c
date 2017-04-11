@@ -1098,7 +1098,19 @@ int set_fw_info(struct synaptics_ts_data *ts, struct touch_fw_info *fw_info)
 					break;
 			case TOUCH_PANEL_H_PATTERN:
 					TOUCH_INFO_MSG("panel pattern type : TOUCH_PANEL_H_PATTERN (customer_family == 1)\n");
+#if defined(CONFIG_MACH_MSM8974_Z_SPR) || defined(CONFIG_MACH_MSM8974_Z_TMO_US) || defined(CONFIG_MACH_MSM8974_Z_ATT_US) || defined(CONFIG_MACH_MSM8974_Z_KDDI)
+					if (lge_get_board_revno() >= HW_REV_1_0) /* new H_PATTERN panel*/
+						memcpy(&SynaFirmware,&SynaFirmware_d,sizeof(SynaFirmware));
+					else
+						memcpy(&SynaFirmware,&SynaFirmware_c,sizeof(SynaFirmware));
+#elif defined(CONFIG_MACH_MSM8974_Z_KR)
+					if (lge_get_board_revno() >= HW_REV_H) /* new H_PATTERN panel*/
+						memcpy(&SynaFirmware,&SynaFirmware_d,sizeof(SynaFirmware));
+					else
+						memcpy(&SynaFirmware,&SynaFirmware_c,sizeof(SynaFirmware));
+#else
 					memcpy(&SynaFirmware, &SynaFirmware_c, sizeof(SynaFirmware));
+#endif
 					break;
 			default:
 					if (get_touch_panel_info(ts) == TOUCH_PANEL_H_PATTERN) { /* H_pattern panel */
