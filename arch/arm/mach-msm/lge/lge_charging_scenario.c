@@ -283,6 +283,7 @@ void lge_monitor_batt_temp(struct charging_info req, struct charging_rsp *res)
 			change_plug_state = 0;
 #endif
 			res->force_update = false;
+		}
 	} else {
 		res->force_update = false;
 	}
