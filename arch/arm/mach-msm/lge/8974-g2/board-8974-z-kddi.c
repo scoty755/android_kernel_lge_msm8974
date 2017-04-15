@@ -47,7 +47,6 @@
 #include "../spm.h"
 #include "../pm.h"
 #include "../modem_notifier.h"
-#include "../lpm_resources.h"
 #include "../platsmp.h"
 #include <mach/board_lge.h>
 
