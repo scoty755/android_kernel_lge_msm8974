@@ -130,7 +130,7 @@ void set_felica_uart_status(_e_snfc_uart_status uart_status);
 _e_snfc_i2c_status get_felica_i2c_status(void);
 void set_felica_i2c_status(_e_snfc_i2c_status i2c_status);
 
-#if defined(CONFIG_LGE_FELICA_NFC)
+#if defined(CONFIG_LGE_FELICA_NFC)&& defined(FELICA_NFC_INTERFACE)
 extern _e_snfc_uart_status __snfc_uart_control_get_uart_status(void);
 extern void __snfc_uart_control_set_uart_status(_e_snfc_uart_status uart_status);
 extern _e_snfc_i2c_status __snfc_i2c_control_get_status(void);
