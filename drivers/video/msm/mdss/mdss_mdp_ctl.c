@@ -527,7 +527,7 @@ int mdss_mdp_perf_calc_pipe(struct mdss_mdp_pipe *pipe,
 				src_h_priv = pipe->src.h;
 			}
 			quota *= 2;
-			perf->bw_overlap = (quota / pipe->dst.h) * v_total;
+			perf->bw_overlap = (quota / dst.h) * v_total;
 		}
 	} else {
 		if (mixer->rotator_mode) {
