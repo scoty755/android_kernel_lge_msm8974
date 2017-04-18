@@ -1155,13 +1155,6 @@ static int mdss_fb_blank_sub(int blank_mode, struct fb_info *info,
 			int curr_pwr_state;
 #ifdef CONFIG_LGE_LCD_OFF_DIMMING
 			fb_blank_called = true;
-#elif defined(CONFIG_OLED_SUPPORT)
-	 /* to hide blinking screen when system reset */
-	 if (mfd->index==0) {
-			mfd->bl_updated = 1;
-			pdata->set_backlight(pdata, 0);
-			mfd->unset_bl_level = -BOOT_BRIGHTNESS;
-	 }
 #endif
 			mutex_lock(&mfd->update.lock);
 			mfd->update.type = NOTIFY_TYPE_SUSPEND;
