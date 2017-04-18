@@ -26,12 +26,17 @@
 #include "mdss_mdp_trace.h"
 #include "mdss_debug.h"
 
-#ifndef CONFIG_OLED_SUPPORT
 #define MDSS_MDP_BUS_FACTOR_SHIFT 10
+#ifndef CONFIG_OLED_SUPPORT
 #define MDSS_MDP_BUS_FUDGE_FACTOR_IB(val) (((val) / 2) * 3)
 #define MDSS_MDP_BUS_FUDGE_FACTOR_HIGH_IB(val) (val << 1)
 #define MDSS_MDP_BUS_FUDGE_FACTOR_AB(val) (val << 1)
 #define MDSS_MDP_BUS_FLOOR_BW (1600000000ULL >> MDSS_MDP_BUS_FACTOR_SHIFT)
+#else
+#define MDSS_MDP_BUS_FUDGE_FACTOR(val) (((val) / 2) * 3)
+static u64 perf_change_cnt = 0;
+static u32 high_resolution = 0;
+static u32 src_h_priv = 0;
 #endif
 
 #ifdef CONFIG_OLED_SUPPORT
