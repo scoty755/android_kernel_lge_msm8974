@@ -856,7 +856,7 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 	pr_info("%s:-\n", __func__);
 	return 0;
 }
-#ifdef CONFIG_MACH_LGE
+#if defined(CONFIG_MACH_LGE) || defined(CONFIG_MACH_MSM8974_Z_US) || defined(CONFIG_MACH_MSM8974_Z_KDDI)
 int mdss_dsi_panel_ief_off(void)
 {
 	struct mdss_dsi_ctrl_pdata *ctrl = NULL;
@@ -1767,7 +1767,7 @@ static int mdss_panel_parse_dt(struct device_node *np,
 		goto error;
 	}
 
-#ifdef CONFIG_MACH_LGE
+#if defined(CONFIG_MACH_LGE) || defined(CONFIG_MACH_MSM8974_Z_US) || defined(CONFIG_MACH_MSM8974_Z_KDDI)
 	mdss_dsi_parse_dcs_cmds(np, &lge_ief_on_cmds, "qcom,panel-ief-on-cmds", "qcom,ief-on-dsi-state");
 
 	mdss_dsi_parse_dcs_cmds(np, &lge_ief_off_cmds, "qcom,panel-ief-off-cmds", "qcom,ief-off-dsi-state");
@@ -1827,7 +1827,7 @@ int mdss_dsi_panel_init(struct device_node *node,
 	ctrl_pdata->panel_data.set_backlight = mdss_dsi_panel_bl_ctrl;
 	ctrl_pdata->switch_mode = mdss_dsi_panel_switch_mode;
 
-#ifdef CONFIG_MACH_LGE
+#if defined(CONFIG_MACH_LGE) || defined(CONFIG_MACH_MSM8974_Z_US) || defined(CONFIG_MACH_MSM8974_Z_KDDI)
 	/* Panel device is not created in KK release										*/
 	/* create the node file for controling the ief under the dsi controller device 				*/
 	/* file path: /sys/devices/fd922800.qcom,mdss_dsi/ief_on_off 						*/
