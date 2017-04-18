@@ -359,7 +359,7 @@ static int mdss_dsi_link_clk_start(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 	int rc = 0;
 
 #ifdef CONFIG_OLED_SUPPORT
-	if (!ctrl->panel_data.panel_info.cont_splash_enabled) {
+	if (!ctrl_pdata->panel_data.panel_info.cont_splash_enabled) {
 		rc = mdss_dsi_link_clk_set_rate(ctrl_pdata);
 		if (rc) {
 			pr_err("%s: failed to set clk rates. rc=%d\n",
